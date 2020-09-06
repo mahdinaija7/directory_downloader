@@ -8,10 +8,10 @@ setuptools.setup(
     version="0.0.1",
     author="Super Vegetoo",
     author_email="vegetoo255@gmail.com",
-    description="A python Package to download files from any directory listing",
+    description="A python Package for downloading files from websites using the directory listing function",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://github.com/pypa/sampleproject",
+    url="https://github.com/SuperVegetoo/directory_downloader",
     packages=setuptools.find_packages(),
     classifiers=[
         "Programming Language :: Python :: 3",
@@ -19,5 +19,5 @@ setuptools.setup(
         "Operating System :: OS Independent",
     ],
     install_requires=["bs4","aiohttp"],
-    python_requires='>=3.7',
+    python_requires='>=3.6',
 )

@@ -22,7 +22,7 @@ from directory_downloader import DDownloader
 async def main():
     url = "https://example.com/directory/"
     downloader = DDownloader(url)
-    await downloader.fetch_files_links()  # returns set of downloadable files urls
+    await downloader.fetch_files_links()  # returns set of downloadable file urls
     await downloader.download_files()  # download all files to current directory
 
 

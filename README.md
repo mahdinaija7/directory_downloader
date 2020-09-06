@@ -38,7 +38,7 @@ downloader = DDownloader(url,directory=r"C:\Users\User\Desktop")
 ```python
 downloader = DDownloader(url,workers=10)
 ```
-#### note : increasing the number of workers too much can lead to instable behavior use at your own risk
+#### note : increasing the number of workers too much can lead to unstable behavior use at your own risk
 ### to fetch file links that have extension of pdf only you can use:
 ```python
 await downloader.fetch_file_links(extension=".pdf")
@@ -49,7 +49,7 @@ await downloader.fetch_file_links(filter=r"test\d\d\d\.apk")
 ```
 ### to download an existing list of urls you can do as follow:
 ```python
-urls = set(["www.example/example/file1.pdf","www.example/example/file1.pdf",...])
+urls = set(["www.example/example/file1.pdf","www.example/example/file2.pdf",...])
 await downloader.download_files(urls=urls)
 ```
 ### also you can use filter on downloadable files:

@@ -3,7 +3,7 @@ import aiohttp
 import os
 import re
 import logging
-from typing import Set
+from typing import Set, List, Union
 from bs4 import BeautifulSoup
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -28,7 +28,9 @@ class DDownloader:
         else:
             self.directory = directory
 
-    async def fetch_file_links(self, url: str = None, filter: str = None, extension: str = None) -> Set[str]:
+    async def fetch_file_links(self, url: str = None, filter: Union[str, callable] = None,
+                               extensions: List[str] = None) -> \
+            Set[str]:
         """ returns a set of downloadable files urls
 
 
@@ -47,24 +49,37 @@ class DDownloader:
                     next_url = url + href
                     if href.count("/") == 0:
                         file_name = next_url.split("/")[-1]
-                        if filter:
-                            matched = re.match(filter, file_name)
-                            is_match = bool(matched)
-                            if not is_match:
-                                continue
+                        if not self.is_valid_link(file_name, filter=filter, extensions=extensions):
+                            logging.warning(f"Skipping link : {next_url}")
+                            continue
 
-                        if extension:
-                            if not file_name.endswith(extension):
-                                continue
-
-                        logging.info(f"'{next_url}',")
+                        logging.info(f"{next_url}")
                         self.files_urls.add(next_url)
                     else:
-                        await self.fetch_file_links(next_url, filter=filter, extension=extension)
+                        await self.fetch_file_links(next_url, filter=filter, extensions=extensions)
 
         return self.files_urls
 
-    async def _get_site_content(self, url: str):
+    def is_valid_link(self, name, filter: Union[str, callable] = None, extensions: List[str] = None) -> bool:
+        if filter:
+            if callable(filter):
+                return filter()
+
+            elif isinstance(filter, str):
+                return bool(re.match(filter, name))
+            else:
+                raise ValueError("filter needs to be either a callable or a string")
+
+        if extensions:
+            valid_extension = False
+            for extension in extensions:
+
+                if not name.endswith(extension):
+                    valid_extension = True
+                    break
+            return valid_extension
+
+    async def _get_site_content(self, url: str) -> str:
         async with aiohttp.ClientSession() as session:
             async with session.get(url) as resp:
                 text = await resp.read()
@@ -87,25 +102,23 @@ class DDownloader:
         logging.warning(f"Could'nt Download {url}")
         raise e
 
-    async def _start_downloads(self, session: aiohttp.ClientSession, filter: str):
+    async def _start_downloads(self, session: aiohttp.ClientSession, filter: str, extensions: List[str]):
         tasks = []
         for url in self.files_urls:
             download_directory = self.directory + "/".join(url.split("/")[2:-1])
             if not os.path.exists(download_directory):
                 os.makedirs(download_directory)
             file_name = url.split("/")[-1]
-            if filter:
-                matched = re.match(filter, file_name)
-                is_match = bool(matched)
-                if not is_match:
-                    continue
+            if not self.is_valid_link(file_name, filter=filter, extensions=extensions):
+                continue
             full_directory = os.path.join(download_directory, file_name)
             task = asyncio.create_task(self._download_file(session, url, full_directory))
             tasks.append(task)
         results = await asyncio.gather(*tasks)
         return results
 
-    async def download_files(self, urls: Set[str] = None, filter: str = None):
+    async def download_files(self, urls: Set[str] = None, filter: Union[str, callable] = None,
+                             extensions: List[str] = None):
         """ Download multiple files
 
             urls:set[str]-> a set of urls files to download
@@ -116,4 +129,4 @@ class DDownloader:
             self.files_urls = urls
         connector = aiohttp.TCPConnector(limit=self.workers)
         async with aiohttp.ClientSession(connector=connector) as session:
-            _ = await self._start_downloads(session, filter)
+            await self._start_downloads(session, filter, extensions)

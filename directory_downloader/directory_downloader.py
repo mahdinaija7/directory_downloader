@@ -36,7 +36,7 @@ class DDownloader:
 
             url:str -> the directory link
             filter:str -> regex to filter the files that matches it
-            extension:str ->  specify the extension of the files you want to fetch
+            extensions:list[str] ->  specify the extensions of the files you want to fetch
         """
         if not url:
             url = self.url
@@ -123,7 +123,7 @@ class DDownloader:
 
             urls:set[str]-> a set of urls files to download
             filter:str -> regex to filter the files that matches it
-
+            extensions:list[str] ->  specify the extensions of the files you want to fetch
         """
         if urls:
             self.files_urls = urls

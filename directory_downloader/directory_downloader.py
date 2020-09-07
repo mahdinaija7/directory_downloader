@@ -11,7 +11,6 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(level
 
 class DDownloader:
     """ A CLASS to download http files recursivly
-
         url:str -> the directory link
         workers:int -> number of workers on downloading
         retries:int -> number of retries when an error occurs
@@ -32,8 +31,6 @@ class DDownloader:
                                extensions: List[str] = None) -> \
             Set[str]:
         """ returns a set of downloadable files urls
-
-
             url:str -> the directory link
             filter:str -> regex to filter the files that matches it
             extensions:list[str] ->  specify the extensions of the files you want to fetch
@@ -49,7 +46,7 @@ class DDownloader:
                     next_url = url + href
                     if href.count("/") == 0:
                         file_name = next_url.split("/")[-1]
-                        if not self.is_valid_link(file_name, filter=filter, extensions=extensions):
+                        if not self._is_valid_link(file_name, filter=filter, extensions=extensions):
                             logging.warning(f"Skipping link : {next_url}")
                             continue
 
@@ -60,24 +57,37 @@ class DDownloader:
 
         return self.files_urls
 
-    def is_valid_link(self, name, filter: Union[str, callable] = None, extensions: List[str] = None) -> bool:
-        if filter:
-            if callable(filter):
-                return filter()
+    def _is_valid_link(self, name, filter: Union[str, callable] = None, extensions: List[str] = None) -> bool:
 
-            elif isinstance(filter, str):
-                return bool(re.match(filter, name))
-            else:
-                raise ValueError("filter needs to be either a callable or a string")
+        if filter and extensions:
+            if self._check_extension(extensions, name) and self._check_filter(filter, name):
+                return True
+            return False
+
+        if filter:
+            self._check_filter(filter, name)
 
         if extensions:
-            valid_extension = False
-            for extension in extensions:
+            self._check_extension(extensions, name)
 
-                if not name.endswith(extension):
-                    valid_extension = True
-                    break
-            return valid_extension
+    def _check_filter(self, filter, name):
+        if callable(filter):
+            return filter(name)
+
+        elif isinstance(filter, str):
+            return bool(re.match(filter, name))
+        else:
+            raise ValueError("filter needs to be either a callable or a string")
+
+    def _check_extension(self, extensions, name):
+        valid_extension = False
+
+        for extension in extensions:
+
+            if name.endswith(extension):
+                valid_extension = True
+                break
+        return valid_extension
 
     async def _get_site_content(self, url: str) -> str:
         async with aiohttp.ClientSession() as session:
@@ -109,7 +119,7 @@ class DDownloader:
             if not os.path.exists(download_directory):
                 os.makedirs(download_directory)
             file_name = url.split("/")[-1]
-            if not self.is_valid_link(file_name, filter=filter, extensions=extensions):
+            if not self._is_valid_link(file_name, filter=filter, extensions=extensions):
                 continue
             full_directory = os.path.join(download_directory, file_name)
             task = asyncio.create_task(self._download_file(session, url, full_directory))
@@ -120,7 +130,6 @@ class DDownloader:
     async def download_files(self, urls: Set[str] = None, filter: Union[str, callable] = None,
                              extensions: List[str] = None):
         """ Download multiple files
-
             urls:set[str]-> a set of urls files to download
             filter:str -> regex to filter the files that matches it
             extensions:list[str] ->  specify the extensions of the files you want to fetch
@@ -130,3 +139,5 @@ class DDownloader:
         connector = aiohttp.TCPConnector(limit=self.workers)
         async with aiohttp.ClientSession(connector=connector) as session:
             await self._start_downloads(session, filter, extensions)
+
+

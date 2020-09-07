@@ -62,11 +62,11 @@ class DDownloader:
         if filter and extensions:
             return self._check_extension(extensions, name) and self._check_filter(filter, name)
 
-            if filter:
-                return self._check_filter(filter, name)
+        if filter:
+            return self._check_filter(filter, name)
 
-            if extensions:
-                return self._check_extension(extensions, name)
+        if extensions:
+            return self._check_extension(extensions, name)
 
     def _check_filter(self, filter, name):
         if callable(filter):

@@ -60,15 +60,13 @@ class DDownloader:
     def _is_valid_link(self, name, filter: Union[str, callable] = None, extensions: List[str] = None) -> bool:
 
         if filter and extensions:
-            if self._check_extension(extensions, name) and self._check_filter(filter, name):
-                return True
-            return False
+            return self._check_extension(extensions, name) and self._check_filter(filter, name)
 
-        if filter:
-            self._check_filter(filter, name)
+            if filter:
+                return self._check_filter(filter, name)
 
-        if extensions:
-            self._check_extension(extensions, name)
+            if extensions:
+                return self._check_extension(extensions, name)
 
     def _check_filter(self, filter, name):
         if callable(filter):
@@ -139,5 +137,3 @@ class DDownloader:
         connector = aiohttp.TCPConnector(limit=self.workers)
         async with aiohttp.ClientSession(connector=connector) as session:
             await self._start_downloads(session, filter, extensions)
-
-

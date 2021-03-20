@@ -3,8 +3,19 @@
 Directory Downloader
 is a Python library for downloading files from websites using the *directory listing* function used mostly in apache/nginx and ftp an example can be seen [here](https://ftp.mozilla.org/)
 
-## Installation
+#Dependencies
 
+Before installation, make sure you have the required dependencies of asyncio and lxml.
+
+Use the package manager [pip](https://pip.pypa.io/en/stable/) to install asyncio and lxml if you don't have them.
+
+```bash
+pip install asyncio
+pip install lxml
+```
+
+
+## Installation
 Use the package manager [pip](https://pip.pypa.io/en/stable/) to install directory_downloader.
 
 ```bash
@@ -22,7 +33,7 @@ from directory_downloader import DDownloader
 async def main():
     url = "https://example.com/directory/"
     downloader = DDownloader(url)
-    await downloader.fetch_files_links()  # returns set of downloadable file urls
+    await downloader.fetch_file_links()  # returns set of downloadable file urls
     await downloader.download_files()  # download all files to current directory
 
 

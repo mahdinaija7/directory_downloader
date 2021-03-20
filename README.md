@@ -52,7 +52,7 @@ downloader = DDownloader(url,workers=10)
 #### note : increasing the number of workers too much can lead to unstable behavior use at your own risk
 ### to fetch file links that have extension of pdf only you can use:
 ```python
-await downloader.fetch_file_links(extension=".pdf")
+await downloader.fetch_file_links(extensions=[".pdf"])
 ```
 ### you can also use regex like the following:
 ```python

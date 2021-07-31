@@ -1,75 +1,119 @@
 import asyncio
-import aiohttp
 import os
 import re
-import logging
 from typing import Set, List, Union
-from bs4 import BeautifulSoup
+from urllib.parse import urljoin, urlparse
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+import aiohttp
+from bs4 import BeautifulSoup, SoupStrainer
+from colorama import init, Fore
+
+init()
 
 
 class DDownloader:
-    """ A CLASS to download http files recursivly
-        url:str -> the directory link
-        workers:int -> number of workers on downloading
-        retries:int -> number of retries when an error occurs
-        directory:str -> the directory where files will be downloaded
-    """
 
-    def __init__(self, url: str, workers: int = 5, retries: int = 5, directory: str = None):
-        self.url = url
+    def __init__(self, workers: int = 5, retries: int = 5, directory: str = None):
         self.workers = workers
-        self.files_urls = set()
-        self.retries = retries
-        if not directory:
-            self.directory = "./"
-        else:
-            self.directory = directory
+        self.downloadable_links = set()
+        self.crawled_links = set()
 
-    async def fetch_file_links(self, url: str = None, filter: Union[str, callable] = None,
-                               extensions: List[str] = None) -> \
-            Set[str]:
-        """ returns a set of downloadable files urls
-            url:str -> the directory link
+    async def get_page_links(self, url: str, extensions: List[str] = None, filter: Union[str, callable] = None):
+        links = []
+        response = await self._get_source_code(url)
+        if isinstance(response, bool):
+            if self._is_valid_downloadable(url, filter=filter, extensions=extensions):
+                print("{}Downloadable Detected {}".format(Fore.YELLOW, Fore.GREEN + url + Fore.RESET))
+                self.downloadable_links.add(url)
+        else:
+            for a_tag in BeautifulSoup(response, 'html.parser', parse_only=SoupStrainer('a')):
+                if a_tag.has_attr('href'):
+                    href = urljoin(url, a_tag['href'])
+                    parsed_href = urlparse(href)
+                    parsed_url = urlparse(url)
+                    previous_folder_path = "/{}/".format(
+                        "/".join([x.strip() for x in parsed_url.path.split("/") if x][:-1]))
+                    href = parsed_href.scheme + "://" + parsed_href.netloc + parsed_href.path
+                    url_previous_folder = parsed_href.scheme + "://" + parsed_href.netloc + previous_folder_path
+                    if url_previous_folder == href:
+                        print("{}Skipped URL{}".format(Fore.CYAN, Fore.RESET))
+                        continue
+                    if self.is_valid_link(href):
+                        if href not in links:
+                            print("Url:{}".format(href))
+                            links.append(href)
+        return links
+
+    async def crawl(self, url):
+        links = await self.get_page_links(url)
+        for link in links:
+            if link not in self.crawled_links:
+                self.crawled_links.add(link)
+                await self.crawl(link)
+
+    async def _get_source_code(self, url):
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url) as resp:
+                if "text/html" not in resp.headers.get("Content-Type"):
+                    return True
+                text = await resp.read()
+                return text.decode("utf-8")
+
+    async def _download_file(self, url: str, session: aiohttp.ClientSession, full_diretory: str = None):
+        async with session.get(url) as response:
+            if response.status != 200:
+                response.raise_for_status()
+            parsed_url = urlparse(url)
+            directory = full_diretory if full_diretory else "." + "/".join(parsed_url.path.split("/")[:-1])
+
+            file_name = parsed_url.path.split("/")[-1]
+            full_file_directory = os.path.join(directory, file_name)
+
+            if not os.path.exists(directory):
+                os.makedirs(directory)
+            print("{}Downloading {}{}".format(Fore.LIGHTGREEN_EX, url, Fore.RESET))
+            with open(full_file_directory, "wb") as file:
+                file_content = await response.read()
+                file.write(file_content)
+                print("{}Done..{}".format(Fore.GREEN, Fore.RESET))
+                return
+
+    async def _start_downloads(self, session: aiohttp.ClientSession, filter: str, extensions: List[str]):
+        print(Fore.YELLOW + "Start Downloading" + Fore.RESET)
+        tasks = []
+        for url in self.downloadable_links:
+            task = asyncio.create_task(self._download_file(url, session))
+            tasks.append(task)
+        results = await asyncio.gather(*tasks)
+        return results
+
+    async def download_files(self, workers: int = 5, urls: Set[str] = None, filter: Union[str, callable] = None,
+                             extensions: List[str] = None):
+        """ Download multiple files
+            urls:set[str]-> a set of urls files to download
             filter:str -> regex to filter the files that matches it
             extensions:list[str] ->  specify the extensions of the files you want to fetch
         """
-        if not url:
-            url = self.url
-        res = await self._get_site_content(url)
-        soup = BeautifulSoup(res, "lxml")
-        for link in soup.find_all("a", href=True):
-            href = link["href"]
-            if href != "/":
-                if href.count("/") in [0, 1]:
-                    next_url = url + href
-                    if href.count("/") == 0:
-                        file_name = next_url.split("/")[-1]
-                        if not self._is_valid_link(file_name, filter=filter, extensions=extensions):
-                            logging.warning(f"Skipping link : {next_url}")
-                            continue
+        if urls:
+            self.downloadable_links = urls
+        connector = aiohttp.TCPConnector(limit=workers)
+        async with aiohttp.ClientSession(connector=connector) as session:
+            await self._start_downloads(session, filter, extensions)
 
-                        logging.info(f"{next_url}")
-                        self.files_urls.add(next_url)
-                    else:
-                        await self.fetch_file_links(next_url, filter=filter, extensions=extensions)
+    def _get_filename(self, url: str):
+        parsed_url = urlparse(url)
+        return parsed_url.path.split("/")[-1]
 
-        return self.files_urls
+    def is_valid_link(self, url: str):
+        regex = re.compile(
+            r'^(?:http|ftp)s?://'  # http:// or https://
+            r'(?:(?:[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?\.)+(?:[A-Z]{2,6}\.?|[A-Z0-9-]{2,}\.?)|'  # domain...
+            r'localhost|'  # localhost...
+            r'\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})'  # ...or ip
+            r'(?::\d+)?'  # optional port
+            r'(?:/?|[/?]\S+)$', re.IGNORECASE)
 
-    def _is_valid_link(self, name, filter: Union[str, callable] = None, extensions: List[str] = None) -> bool:
-
-        if filter and extensions:
-            return self._check_extension(extensions, name) and self._check_filter(filter, name)
-
-        elif filter:
-            return self._check_filter(filter, name)
-
-        elif extensions:
-            return self._check_extension(extensions, name)
-
-        else: #if no paramaters are specified
-            return True
+        return re.match(regex, url) is not None
 
     def _check_filter(self, filter, name):
         if callable(filter):
@@ -90,53 +134,17 @@ class DDownloader:
                 break
         return valid_extension
 
-    async def _get_site_content(self, url: str) -> str:
-        async with aiohttp.ClientSession() as session:
-            async with session.get(url) as resp:
-                text = await resp.read()
-                return text.decode("utf-8")
+    def _is_valid_downloadable(self, url, filter: Union[str, callable] = None, extensions: List[str] = None) -> bool:
+        name = self._get_filename(url)
+        if filter and extensions:
+            return self._check_extension(extensions, name) and self._check_filter(filter, name)
 
-    async def _download_file(self, session: aiohttp.ClientSession, url: str, full_directory: str):
-        for i in range(self.retries):
-            try:
-                async with session.get(url) as response:
-                    if response.status != 200:
-                        response.raise_for_status()
-                    logging.info("downloading", url)
-                    with open(os.path.join(full_directory), "wb") as file:
-                        file_content = await response.read()
-                        file.write(file_content)
-                    return
-            except Exception as e:
-                logging.warning(f"Something goes wrong trying again {url} for {i} time ")
+        elif filter:
+            return self._check_filter(filter, name)
 
-        logging.warning(f"Could'nt Download {url}")
-        raise e
+        elif extensions:
+            return self._check_extension(extensions, name)
 
-    async def _start_downloads(self, session: aiohttp.ClientSession, filter: str, extensions: List[str]):
-        tasks = []
-        for url in self.files_urls:
-            download_directory = self.directory + "/".join(url.split("/")[2:-1])
-            if not os.path.exists(download_directory):
-                os.makedirs(download_directory)
-            file_name = url.split("/")[-1]
-            if not self._is_valid_link(file_name, filter=filter, extensions=extensions):
-                continue
-            full_directory = os.path.join(download_directory, file_name)
-            task = asyncio.create_task(self._download_file(session, url, full_directory))
-            tasks.append(task)
-        results = await asyncio.gather(*tasks)
-        return results
+        else:  # if no paramaters are specified
+            return True
 
-    async def download_files(self, urls: Set[str] = None, filter: Union[str, callable] = None,
-                             extensions: List[str] = None):
-        """ Download multiple files
-            urls:set[str]-> a set of urls files to download
-            filter:str -> regex to filter the files that matches it
-            extensions:list[str] ->  specify the extensions of the files you want to fetch
-        """
-        if urls:
-            self.files_urls = urls
-        connector = aiohttp.TCPConnector(limit=self.workers)
-        async with aiohttp.ClientSession(connector=connector) as session:
-            await self._start_downloads(session, filter, extensions)

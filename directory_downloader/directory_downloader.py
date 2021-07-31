@@ -13,8 +13,7 @@ init()
 
 class DDownloader:
 
-    def __init__(self, workers: int = 5, retries: int = 5, directory: str = None):
-        self.workers = workers
+    def __init__(self):
         self.downloadable_links = set()
         self.crawled_links = set()
 

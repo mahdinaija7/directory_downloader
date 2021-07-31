@@ -5,13 +5,12 @@ is a Python library for downloading files from websites using the *directory lis
 
 ## Dependencies
 
-Before installation, make sure you have the required dependencies of asyncio and lxml.
+Before installation, make sure you have the required dependencies of asyncio.
 
-Use the package manager [pip](https://pip.pypa.io/en/stable/) to install asyncio and lxml if you don't have them.
+Use the package manager [pip](https://pip.pypa.io/en/stable/) to install asyncio if you don't have it.
 
 ```bash
 pip install asyncio
-pip install lxml
 ```
 
 
@@ -32,8 +31,8 @@ from directory_downloader import DDownloader
 
 async def main():
     url = "https://example.com/directory/"
-    downloader = DDownloader(url)
-    await downloader.fetch_file_links()  # returns set of downloadable file urls
+    downloader = DDownloader()
+    await downloader.crawl(url)  # fetch all the links from /directory/
     await downloader.download_files()  # download all files to current directory
 
 
@@ -43,20 +42,20 @@ if __name__ == '__main__':
 ## Advanced Usage
 ### to change the directory simply add:
 ```python
-downloader = DDownloader(url,directory=r"C:\Users\User\Desktop")
+downloader.download_files(full_directory=r"C:\Users\User\Desktop")
 ```
 ### to make downloads faster you can increase the number of workers (by default 5):
 ```python
-downloader = DDownloader(url,workers=10)
+downloader.download_files(workers=5)
 ```
 #### note : increasing the number of workers too much can lead to unstable behavior use at your own risk
 ### to fetch file links that have extension of pdf only you can use:
 ```python
-await downloader.fetch_file_links(extensions=[".pdf"])
+await downloader.crawl(extensions=[".pdf"])
 ```
 ### you can also use regex like the following:
 ```python
-await downloader.fetch_file_links(filter=r"test\d\d\d\.apk")   
+await downloader.crawl(filter=r"test\d\d\d\.apk")   
 ```
 ### to download an existing list of urls you can do as follow:
 ```python

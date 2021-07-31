@@ -1,10 +1,9 @@
 import asyncio
 import os
 import re
+import aiohttp
 from typing import Set, List, Union
 from urllib.parse import urljoin, urlparse
-
-import aiohttp
 from bs4 import BeautifulSoup, SoupStrainer
 from colorama import init, Fore
 
@@ -77,17 +76,17 @@ class DDownloader:
                 print("{}Done..{}".format(Fore.GREEN, Fore.RESET))
                 return
 
-    async def _start_downloads(self, session: aiohttp.ClientSession, filter: str, extensions: List[str]):
+    async def _start_downloads(self, session: aiohttp.ClientSession, full_directory: str = None):
         print(Fore.YELLOW + "Start Downloading" + Fore.RESET)
         tasks = []
         for url in self.downloadable_links:
-            task = asyncio.create_task(self._download_file(url, session))
+            task = asyncio.create_task(self._download_file(url, session, full_diretory=full_directory))
             tasks.append(task)
         results = await asyncio.gather(*tasks)
         return results
 
     async def download_files(self, workers: int = 5, urls: Set[str] = None, filter: Union[str, callable] = None,
-                             extensions: List[str] = None):
+                             extensions: List[str] = None, full_directory: str = None):
         """ Download multiple files
             urls:set[str]-> a set of urls files to download
             filter:str -> regex to filter the files that matches it
@@ -97,7 +96,7 @@ class DDownloader:
             self.downloadable_links = urls
         connector = aiohttp.TCPConnector(limit=workers)
         async with aiohttp.ClientSession(connector=connector) as session:
-            await self._start_downloads(session, filter, extensions)
+            await self._start_downloads(session, filter, extensions, full_directory=full_directory)
 
     def _get_filename(self, url: str):
         parsed_url = urlparse(url)
@@ -146,4 +145,3 @@ class DDownloader:
 
         else:  # if no paramaters are specified
             return True
-

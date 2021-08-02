@@ -5,12 +5,13 @@ is a Python library for downloading files from websites using the *directory lis
 
 ## Dependencies
 
-Before installation, make sure you have the required dependencies of asyncio.
+Before installation, make sure you have the required dependencies of asyncio and colorama.
 
-Use the package manager [pip](https://pip.pypa.io/en/stable/) to install asyncio if you don't have it.
+Use the package manager [pip](https://pip.pypa.io/en/stable/) to install asyncio and colorama if you don't have them.
 
 ```bash
 pip install asyncio
+pip install colorama
 ```
 
 
@@ -18,7 +19,7 @@ pip install asyncio
 Use the package manager [pip](https://pip.pypa.io/en/stable/) to install directory_downloader.
 
 ```bash
-pip install directory_downloader 
+pip install directory-downloader 
 ```
 
 ## Usage

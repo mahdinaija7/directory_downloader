@@ -96,7 +96,7 @@ class DDownloader:
             self.downloadable_links = urls
         connector = aiohttp.TCPConnector(limit=workers)
         async with aiohttp.ClientSession(connector=connector) as session:
-            await self._start_downloads(session, filter, extensions, full_directory=full_directory)
+            await self._start_downloads(session, full_directory=full_directory)
 
     def _get_filename(self, url: str):
         parsed_url = urlparse(url)

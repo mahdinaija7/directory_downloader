@@ -36,6 +36,15 @@ if __name__ == '__main__':
     asyncio.run(main())
 ```
 ## Advanced Usage
+
+### to disable coloring:
+```python
+downloader = DDownloader(coloring=False)
+```
+### to disable verbose mode:
+```python
+downloader = DDownloader(verbose=False)
+```
 ### to change the directory simply add:
 ```python
 downloader.download_files(full_directory=r"C:\Users\User\Desktop")

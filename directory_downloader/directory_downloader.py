@@ -11,17 +11,31 @@ init()
 
 
 class DDownloader:
+    """ A CLASS to download http files recursivly
+        coloring:bool -> colored output
+        verbose:bool ->  provide details in output
+    """
 
-    def __init__(self):
+    def __init__(self, coloring=True, verbose=True):
         self.downloadable_links = set()
         self.crawled_links = set()
+        self.verbose = verbose
+        self.coloring = coloring
 
-    async def get_page_links(self, url: str, extensions: List[str] = None, filter: Union[str, callable] = None):
+    async def get_page_links(self, url: str, extensions: List[str] = None, filter: Union[str, callable] = None) -> List[
+        str]:
+
+        """ returns a list of links on the page
+            url:str -> the directory link
+            filter:str -> regex to filter the files that matches it
+            extensions:list[str] ->  specify the extensions of the files you want to fetch
+        """
+
         links = []
         response = await self._get_source_code(url)
         if isinstance(response, bool):
             if self._is_valid_downloadable(url, filter=filter, extensions=extensions):
-                print("{}Downloadable Detected {}".format(Fore.YELLOW, Fore.GREEN + url + Fore.RESET))
+                self.stdoutOutput("{}Downloadable Detected {}".format(Fore.YELLOW, Fore.GREEN + url + Fore.RESET))
                 self.downloadable_links.add(url)
         else:
             for a_tag in BeautifulSoup(response, 'html.parser', parse_only=SoupStrainer('a')):
@@ -34,22 +48,32 @@ class DDownloader:
                     href = parsed_href.scheme + "://" + parsed_href.netloc + parsed_href.path
                     url_previous_folder = parsed_href.scheme + "://" + parsed_href.netloc + previous_folder_path
                     if url_previous_folder == href:
-                        print("{}Skipped URL{}".format(Fore.CYAN, Fore.RESET))
+                        self.stdoutOutput("{}Skipped URL{}".format(Fore.CYAN, Fore.RESET))
                         continue
                     if self.is_valid_link(href):
                         if href not in links:
-                            print("Url:{}".format(href))
+                            self.stdoutOutput("Url:{}".format(href))
                             links.append(href)
         return links
 
-    async def crawl(self, url):
+    async def crawl(self, url: str):
+
+        """ crawl a website and search of downloadables files
+            url:str -> the directory link
+        """
+
         links = await self.get_page_links(url)
         for link in links:
             if link not in self.crawled_links:
                 self.crawled_links.add(link)
                 await self.crawl(link)
 
-    async def _get_source_code(self, url):
+    async def _get_source_code(self, url: str):
+
+        """
+            return the code source of the url if html else return True
+            url:str -> the directory link
+        """
         async with aiohttp.ClientSession() as session:
             async with session.get(url) as resp:
                 if "text/html" not in resp.headers.get("Content-Type"):
@@ -69,15 +93,17 @@ class DDownloader:
 
             if not os.path.exists(directory):
                 os.makedirs(directory)
-            print("{}Downloading {}{}".format(Fore.LIGHTGREEN_EX, url, Fore.RESET))
+
+            self.stdoutOutput("{}Downloading {}{}".format(Fore.LIGHTGREEN_EX, url, Fore.RESET))
+
             with open(full_file_directory, "wb") as file:
                 file_content = await response.read()
                 file.write(file_content)
-                print("{}Done..{}".format(Fore.GREEN, Fore.RESET))
+                self.stdoutOutput("{}Done..{}".format(Fore.GREEN, Fore.RESET))
                 return
 
     async def _start_downloads(self, session: aiohttp.ClientSession, full_directory: str = None):
-        print(Fore.YELLOW + "Start Downloading" + Fore.RESET)
+        self.stdoutOutput(Fore.YELLOW + "Start Downloading" + Fore.RESET)
         tasks = []
         for url in self.downloadable_links:
             task = asyncio.create_task(self._download_file(url, session, full_diretory=full_directory))
@@ -88,7 +114,8 @@ class DDownloader:
     async def download_files(self, workers: int = 5, urls: Set[str] = None, filter: Union[str, callable] = None,
                              extensions: List[str] = None, full_directory: str = None):
         """ Download multiple files
-            urls:set[str]-> a set of urls files to download
+            workers:int -> number of workers on downloading
+            urls:Set[str]
             filter:str -> regex to filter the files that matches it
             extensions:list[str] ->  specify the extensions of the files you want to fetch
         """
@@ -145,3 +172,19 @@ class DDownloader:
 
         else:  # if no paramaters are specified
             return True
+
+    def clearColors(self, message):
+        retVal = message
+
+        if isinstance(message, str):
+            retVal = re.sub(r"\x1b\[[\d;]+m", "", message)
+
+        return retVal
+
+    def stdoutOutput(self, message):
+        if self.verbose:
+            output = message
+            if not self.coloring:
+                output = self.clearColors(output)
+            print(output)
+

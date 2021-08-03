@@ -5,14 +5,9 @@ is a Python library for downloading files from websites using the *directory lis
 
 ## Dependencies
 
-Before installation, make sure you have the required dependencies of asyncio and colorama.
+Before installation, make sure you have the required dependencies of asyncio, aiohttp, bs4 and colorama.
 
-Use the package manager [pip](https://pip.pypa.io/en/stable/) to install asyncio and colorama if you don't have them.
 
-```bash
-pip install asyncio
-pip install colorama
-```
 
 
 ## Installation

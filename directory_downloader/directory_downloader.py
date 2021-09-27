@@ -2,7 +2,7 @@ import asyncio
 import os
 import re
 import aiohttp
-from typing import Set, List, Union
+from typing import Set, List, Optional, Union
 from urllib.parse import urljoin, urlparse
 from bs4 import BeautifulSoup, SoupStrainer
 from colorama import init, Fore
@@ -16,11 +16,12 @@ class DDownloader:
         verbose:bool ->  provide details in output
     """
 
-    def __init__(self, coloring=True, verbose=True):
+    def __init__(self, coloring=True, verbose=True, proxy: Optional[str] = None):
         self.downloadable_links = set()
         self.crawled_links = set()
         self.verbose = verbose
         self.coloring = coloring
+        self.proxy = proxy
 
     async def get_page_links(self, url: str, extensions: List[str] = None, filter: Union[str, callable] = None) -> List[
         str]:
@@ -75,14 +76,14 @@ class DDownloader:
             url:str -> the directory link
         """
         async with aiohttp.ClientSession() as session:
-            async with session.get(url) as resp:
+            async with session.get(url, proxy=self.proxy) as resp:
                 if "text/html" not in resp.headers.get("Content-Type"):
                     return True
                 text = await resp.read()
                 return text.decode("utf-8")
 
     async def _download_file(self, url: str, session: aiohttp.ClientSession, full_diretory: str = None):
-        async with session.get(url) as response:
+        async with session.get(url, proxy=self.proxy) as response:
             if response.status != 200:
                 response.raise_for_status()
             parsed_url = urlparse(url)
